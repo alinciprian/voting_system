@@ -1,0 +1,35 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/Ballot.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity >=0.7.0 <0.9.0;\n\n/// @title Voting system with delegation feature\n/// @author AlinCiprian\n/// @notice You can use this contract to implement a decentralized voting system\n\ncontract Ballot {\n    struct Voter {\n        uint32 weight; // weight is acumulated by delegation\n        bool voted; // if voted is true, the person have already voted\n        address delegate; //the address delegated by the voter\n        uint32 vote; // the index of the preffered proposal\n    }\n\n    struct Proposal {\n        string proposalName;\n        uint voteCount;\n    }\n\n    uint[] public winningProposals; //This array contains the indexes of the winner/winners\n    string[] public winnerNames; // An array that contains the winner/winners names\n\n    mapping(address => Voter) voters;\n    Proposal[] public proposals; // An array that contains the proposals which will be voted\n\n    address public chairman;\n\n    constructor(string[] memory proposalNames) {\n        chairman = msg.sender;\n        voters[chairman].weight = 1;\n        for (uint i = 0; i < proposalNames.length; i++) {\n            proposals.push(\n                Proposal({proposalName: proposalNames[i], voteCount: 0})\n            );\n        }\n    }\n\n    function giveRightToVote(address _voter) external {\n        require(msg.sender == chairman, \"Only chairman can give right to vote\");\n        require(!voters[_voter].voted, \"Already voted\");\n        require(voters[_voter].weight == 0);\n        voters[_voter].weight = 1;\n    }\n\n    function delegateVote(address _to) external {\n        Voter storage sender = voters[msg.sender];\n        require(!sender.voted, \"Can not delegate if you have already voted\");\n        require(sender.weight != 0, \"You have no right to vote\");\n        require(_to != msg.sender, \"Self-delegation is not allowed\");\n        Voter storage delegated = voters[_to];\n        require(\n            delegated.weight != 0,\n            \"The delegated address does not have the right to vote\"\n        );\n\n        sender.voted = true;\n        sender.delegate = _to;\n\n        if (delegated.voted) {\n            proposals[delegated.vote].voteCount += sender.weight;\n        } else {\n            delegated.weight += sender.weight;\n        }\n    }\n\n    function vote(uint32 proposal) external {\n        Voter storage sender = voters[msg.sender];\n        require(sender.weight != 0, \"You do not have the right to vote\");\n        require(!sender.voted, \"Already voted\");\n\n        sender.voted = true;\n        sender.vote = proposal;\n\n        proposals[proposal].voteCount += sender.weight;\n    }\n\n    function countVotes() external {\n        require(\n            msg.sender == chairman,\n            \"Only the chairman can trigger this function\"\n        );\n        uint winningCount = 0;\n        // Find the highest number of votes and store it in winningCount\n        for (uint p = 0; p < proposals.length; p++) {\n            if (proposals[p].voteCount > winningCount) {\n                winningCount = proposals[p].voteCount;\n            }\n        }\n        // Store in winningProposals the indexes of the  proposals  that have a voteCount equal to winningCount\n        // This way we can keep track if we have more proposals with the same number of votes\n        for (uint i = 0; i < proposals.length; i++) {\n            if (proposals[i].voteCount == winningCount) {\n                winningProposals.push(i);\n            }\n        }\n        // Based on the indexes above, we store in winnerNames the corespondent names;\n        for (uint index = 0; index < winningProposals.length; index++) {\n            uint winnerIndex = winningProposals[index];\n            winnerNames.push(proposals[winnerIndex].proposalName);\n        }\n    }\n\n    function getWinners() public view returns (string[] memory) {\n        return winnerNames;\n    }\n\n    function getProposalNames() public view returns (string[] memory) {\n        uint itemCount = proposals.length;\n        string[] memory proposalNames = new string[](itemCount);\n\n        for (uint i = 0; i < proposals.length; i++) {\n            proposalNames[i] = proposals[i].proposalName;\n        }\n        return proposalNames;\n    }\n}\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
